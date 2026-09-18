@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheets Style - Loyihalar Nazorati</title>
+    <link rel="stylesheet" href="./assets/css/index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Kirish va Xona o'zgartirish Modal Oynasi -->
+    <div id="roomModal" class="modal-overlay">
+        <div class="modal-card">
+            <h2>Xona / Ism kiriting</h2>
+            <p>Ma'lumotlaringiz boshqalarnikidan alohida saqlanishi uchun xona nomi yoki ismingizni yozing:</p>
+            <div class="modal-input-group">
+                <input type="text" id="roomInput" placeholder="Masalan: maktab_odil" autocomplete="off">
+                <button id="joinRoomBtn" class="btn-primary">Kirish</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Yuqori qism: Sinflar tablari va Joriy xona -->
+        <header class="header">
+            <div class="logo-area">
+                <div class="logo">📊 Loyihalar Nazorati</div>
+                <div class="current-room-badge" id="currentRoomDisplay" title="Xonani o'zgartirish uchun bosing" onclick="openRoomModal()">Xona: yuklanmoqda...</div>
+            </div>
+            <div class="grades-nav" id="gradesNav">
+                <button class="grade-btn active" data-grade="7">7-sinf</button>
+                <button class="grade-btn" data-grade="8">8-sinf</button>
+                <button class="grade-btn" data-grade="9">9-sinf</button>
+                <button class="grade-btn" data-grade="10">10-sinf</button>
+                <button class="grade-btn" data-grade="11">11-sinf</button>
+            </div>
+        </header>
+
+        <!-- Boshqaruv paneli -->
+        <div class="toolbar">
+            <input type="text" id="studentNameInput" placeholder="O'quvchi F.I.Sh. kiriting...">
+            <div class="toolbar-btns">
+                <button id="addStudentBtn" class="btn-primary">+ O'quvchi qo'shish</button>
+                <button id="addColumnBtn" class="btn-secondary">+ Ustun qo'shish</button>
+            </div>
+        </div>
+
+        <!-- Google Sheets uslubidagi keng jadval -->
+        <div class="spreadsheet-container">
+            <table id="spreadsheetTable">
+                <thead>
+                    <tr id="tableHeaderRow">
+                        <th class="row-number-header">#</th>
+                        <th class="name-col-header">O'quvchi F.I.Sh.</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr class="empty-row"><td colspan="2">Ma'lumotlar yuklanmoqda...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="./assets/js/index.js" type="module"></script>
+</body>
+</html>
