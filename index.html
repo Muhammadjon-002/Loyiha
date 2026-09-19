@@ -38,11 +38,29 @@
         </header>
 
         <!-- Boshqaruv paneli -->
+        <!-- Boshqaruv paneli -->
         <div class="toolbar">
-            <input type="text" id="studentNameInput" placeholder="O'quvchi F.I.Sh. kiriting...">
-            <div class="toolbar-btns">
-                <button id="addStudentBtn" class="btn-primary">+ O'quvchi qo'shish</button>
-                <button id="addColumnBtn" class="btn-secondary">+ Ustun qo'shish</button>
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Qidirish..." autocomplete="off">
+            </div>
+            
+            <div class="filter-box">
+                <select id="filterSelect">
+                    <option value="default">Holat: Hammasi</option>
+                    <option value="not_done_first">Holat: Bajarmaganlar oldinda</option>
+                    <option value="done_first">Holat: Bajarilganlar oldinda</option>
+                    <option value="az">Alifbo bo'yicha (A-Z)</option>
+                    <option value="za">Alifbo bo'yicha (Z-A)</option>
+                </select>
+            </div>
+
+            <div class="toolbar-inputs-group">
+                <input type="text" id="studentNameInput" placeholder="O'quvchi F.I.Sh. kiriting..." autocomplete="off">
+                <div class="toolbar-btns">
+                    <button id="addStudentBtn" class="btn-primary">+ O'quvchi qo'shish</button>
+                    <button id="addColumnBtn" class="btn-secondary">+ Ustun qo'shish</button>
+                </div>
             </div>
         </div>
 

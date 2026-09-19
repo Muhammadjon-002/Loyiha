@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// ---> O'ZINGIZNING FIREBASE CONFIG'INGIZni SHU YERGA YOZING <---
+// ---> O'ZINGIZNING FIREBASE CONFIG'INGIZNI SHU YERGA YOZING <---
   const firebaseConfig = {
     apiKey: "AIzaSyAOpnU6UBEByDRhYRX_ANx-U6WfYdBeiJw",
     authDomain: "school-project-116.firebaseapp.com",
@@ -26,10 +26,15 @@ let schoolData = {
     11: { columns: [], students: [] }
 };
 
+// Modal elementlari
 const roomModal = document.getElementById('roomModal');
 const roomInput = document.getElementById('roomInput');
 const joinRoomBtn = document.getElementById('joinRoomBtn');
 const currentRoomDisplay = document.getElementById('currentRoomDisplay');
+
+// Qidiruv va filtr elementlari
+const searchInput = document.getElementById('searchInput');
+const filterSelect = document.getElementById('filterSelect');
 
 if (currentRoom) {
     roomModal.style.display = 'none';
@@ -39,7 +44,7 @@ if (currentRoom) {
     roomModal.style.display = 'flex';
 }
 
-// Xona oynasini ochish funksiyasi (tugmani bosganda ishlaydi)
+// Xona oynasini ochish
 window.openRoomModal = function() {
     roomInput.value = currentRoom || '';
     roomModal.style.display = 'flex';
@@ -56,6 +61,15 @@ joinRoomBtn.addEventListener('click', () => {
     roomModal.style.display = 'none';
     currentRoomDisplay.textContent = `Xona: ${currentRoom}`;
     loadDataFromCloud();
+});
+
+// Qidiruv va filtr hodisalari
+searchInput.addEventListener('input', () => {
+    renderTable();
+});
+
+filterSelect.addEventListener('change', () => {
+    renderTable();
 });
 
 // Bazadan yuklash
@@ -111,7 +125,11 @@ document.getElementById('studentNameInput').addEventListener('keypress', (e) => 
 async function addStudent() {
     const input = document.getElementById('studentNameInput');
     const name = input.value.trim();
-    if (!name) return;
+    
+    if (!name) {
+        input.focus();
+        return;
+    }
 
     const gradeData = schoolData[currentGrade];
 
@@ -133,6 +151,7 @@ async function addStudent() {
     input.value = '';
     await saveToCloud();
     renderTable();
+    input.focus();
 }
 
 // Ustun qo'shish
@@ -209,7 +228,7 @@ window.deleteColumn = async function(colName) {
     }
 };
 
-// Jadvalni chizish
+// Jadvalni chizish (Qidirish va Filtr / Alifbo bo'yicha saralash bilan)
 function renderTable() {
     const headerRow = document.getElementById('tableHeaderRow');
     const tableBody = document.getElementById('tableBody');
@@ -238,8 +257,60 @@ function renderTable() {
         return;
     }
 
+    // 1. Qidirish bo'yicha filter qilish
+    const searchText = searchInput.value.toLowerCase().trim();
+    let filteredStudents = gradeData.students.filter(student => 
+        student.name.toLowerCase().includes(searchText)
+    );
+
+    // 2. Holat yoki Alifbo bo'yicha saralash (Filter)
+    const filterValue = filterSelect.value;
+    if (filterValue !== 'default') {
+        filteredStudents.sort((a, b) => {
+            if (filterValue === 'az') {
+                return a.name.localeCompare(b.name); // A dan Z ga
+            } else if (filterValue === 'za') {
+                return b.name.localeCompare(a.name); // Z dan A ga
+            } else if (gradeData.columns.length > 0) {
+                const firstCol = gradeData.columns[0];
+                const statusA = a.statuses[firstCol];
+                const statusB = b.statuses[firstCol];
+
+                const getRank = (st) => {
+                    if (st === false) return 1; // Bajarmaganlar
+                    if (st === true) return 2;  // Bajarilganlar
+                    return 3;                   // Bo'shlar
+                };
+
+                const rankA = getRank(statusA);
+                const rankB = getRank(statusB);
+
+                if (filterValue === 'not_done_first') {
+                    return rankA - rankB;
+                } else if (filterValue === 'done_first') {
+                    const getDoneRank = (st) => {
+                        if (st === true) return 1;
+                        if (st === false) return 2;
+                        return 3;
+                    };
+                    return getDoneRank(statusA) - getDoneRank(statusB);
+                }
+            }
+            return 0;
+        });
+    }
+
+    if (filteredStudents.length === 0) {
+        tableBody.innerHTML = `
+            <tr class="empty-row">
+                <td colspan="2">Bunday o'quvchi topilmadi.</td>
+            </tr>
+        `;
+        return;
+    }
+
     let bodyHTML = '';
-    gradeData.students.forEach((student, index) => {
+    filteredStudents.forEach((student, index) => {
         bodyHTML += `<tr>`;
         bodyHTML += `<td class="row-number">${index + 1}</td>`;
         bodyHTML += `
