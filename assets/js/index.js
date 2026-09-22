@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // ---> O'ZINGIZNING FIREBASE CONFIG'INGIZNI SHU YERGA YOZING <---
   const firebaseConfig = {
@@ -15,9 +16,11 @@ import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/fireb
 
   const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-let currentRoom = localStorage.getItem('user_room_id') || null;
+let currentUserUid = null;
 let currentGrade = 7;
+let isSignUpMode = false; // Hozirgi rejim: kirish yoki ro'yxatdan o'tish
 let schoolData = {
     7: { columns: [], students: [] },
     8: { columns: [], students: [] },
@@ -26,56 +29,94 @@ let schoolData = {
     11: { columns: [], students: [] }
 };
 
-// Modal elementlari
-const roomModal = document.getElementById('roomModal');
-const roomInput = document.getElementById('roomInput');
-const joinRoomBtn = document.getElementById('joinRoomBtn');
-const currentRoomDisplay = document.getElementById('currentRoomDisplay');
+// Elementlar
+const authModal = document.getElementById('authModal');
+const authEmail = document.getElementById('authEmail');
+const authPassword = document.getElementById('authPassword');
+const authActionBtn = document.getElementById('authActionBtn');
+const modalTitle = document.getElementById('modalTitle');
+const modalDesc = document.getElementById('modalDesc');
+const switchAuthMode = document.getElementById('switchAuthMode');
+const switchText = document.getElementById('switchText');
+const currentUserDisplay = document.getElementById('currentUserDisplay');
 
-// Qidiruv va filtr elementlari
 const searchInput = document.getElementById('searchInput');
 const filterSelect = document.getElementById('filterSelect');
 
-if (currentRoom) {
-    roomModal.style.display = 'none';
-    currentRoomDisplay.textContent = `Xona: ${currentRoom}`;
-    loadDataFromCloud();
-} else {
-    roomModal.style.display = 'flex';
-}
+// Foydalanuvchi holatini kuzatish (Avtomatik login)
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUserUid = user.uid;
+        authModal.style.display = 'none';
+        currentUserDisplay.textContent = `Hisob: ${user.email}`;
+        loadDataFromCloud();
+    } else {
+        currentUserUid = null;
+        authModal.style.display = 'flex';
+        currentUserDisplay.textContent = `Tizimga kirmagansiz`;
+    }
+});
 
-// Xona oynasini ochish
-window.openRoomModal = function() {
-    roomInput.value = currentRoom || '';
-    roomModal.style.display = 'flex';
-};
+// Kirish / Ro'yxatdan o'tish rejimini almashtirish
+switchAuthMode.addEventListener('click', (e) => {
+    e.preventDefault();
+    isSignUpMode = !isSignUpMode;
+    if (isSignUpMode) {
+        modalTitle.textContent = "Ro'yxatdan o'tish";
+        modalDesc.textContent = "Yangi akkumulyator ochish uchun email va parol kiriting:";
+        authActionBtn.textContent = "Ro'yxatdan o'tish";
+        switchText.textContent = "Akkauntingiz bormi?";
+        switchAuthMode.textContent = "Tizimga kirish";
+    } else {
+        modalTitle.textContent = "Tizimga kirish";
+        modalDesc.textContent = "Loyihalaringizni boshqarish uchun pochta va parolingizni kiriting:";
+        authActionBtn.textContent = "Kirish";
+        switchText.textContent = "Akkauntingiz yo'qmi?";
+        switchAuthMode.textContent = "Ro'yxatdan o'tish";
+    }
+});
 
-joinRoomBtn.addEventListener('click', () => {
-    const room = roomInput.value.trim().toLowerCase();
-    if (!room) {
-        alert("Iltimos, xona yoki ism kiriting!");
+// Tugmani bosganda kirish yoki ro'yxatdan o'tishni bajarish
+authActionBtn.addEventListener('click', async () => {
+    const email = authEmail.value.trim();
+    const password = authPassword.value.trim();
+
+    if (!email || !password) {
+        alert("Iltimos, email va parolni to'ldiring!");
         return;
     }
-    currentRoom = room;
-    localStorage.setItem('user_room_id', currentRoom);
-    roomModal.style.display = 'none';
-    currentRoomDisplay.textContent = `Xona: ${currentRoom}`;
-    loadDataFromCloud();
+
+    try {
+        if (isSignUpMode) {
+            // Ro'yxatdan o'tish
+            await createUserWithEmailAndPassword(auth, email, password);
+            alert("Muvaffaqiyatli ro'yxatdan o'tdingiz!");
+        } else {
+            // Tizimga kirish
+            await signInWithEmailAndPassword(auth, email, password);
+        }
+    } catch (error) {
+        alert("Xatolik: " + error.message);
+    }
 });
+
+// Hisobdan chiqish (Logout)
+window.logoutUser = function() {
+    if (confirm("Hisobdan chiqmoqchimisiz?")) {
+        signOut(auth).then(() => {
+            location.reload();
+        });
+    }
+};
 
 // Qidiruv va filtr hodisalari
-searchInput.addEventListener('input', () => {
-    renderTable();
-});
+searchInput.addEventListener('input', () => renderTable());
+filterSelect.addEventListener('change', () => renderTable());
 
-filterSelect.addEventListener('change', () => {
-    renderTable();
-});
-
-// Bazadan yuklash
+// Bazadan yuklash (Har bir foydalanuvchining o'z UID si bo'yicha alohida saqlanadi)
 async function loadDataFromCloud() {
     try {
-        const docRef = doc(db, "rooms", currentRoom);
+        const docRef = doc(db, "users_projects", currentUserUid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             schoolData = docSnap.data();
@@ -92,14 +133,13 @@ async function loadDataFromCloud() {
         renderTable();
     } catch (error) {
         console.error("Xatolik:", error);
-        alert("Internet yoki Firebase ulanishida xatolik bor!");
     }
 }
 
 // Bazaga saqlash
 async function saveToCloud() {
     try {
-        await setDoc(doc(db, "rooms", currentRoom), schoolData);
+        await setDoc(doc(db, "users_projects", currentUserUid), schoolData);
     } catch (error) {
         console.error("Saqlashda xatolik:", error);
     }
@@ -228,7 +268,7 @@ window.deleteColumn = async function(colName) {
     }
 };
 
-// Jadvalni chizish (Qidirish va Filtr / Alifbo bo'yicha saralash bilan)
+// Jadvalni chizish
 function renderTable() {
     const headerRow = document.getElementById('tableHeaderRow');
     const tableBody = document.getElementById('tableBody');
@@ -257,29 +297,27 @@ function renderTable() {
         return;
     }
 
-    // 1. Qidirish bo'yicha filter qilish
     const searchText = searchInput.value.toLowerCase().trim();
     let filteredStudents = gradeData.students.filter(student => 
         student.name.toLowerCase().includes(searchText)
     );
 
-    // 2. Holat yoki Alifbo bo'yicha saralash (Filter)
     const filterValue = filterSelect.value;
     if (filterValue !== 'default') {
         filteredStudents.sort((a, b) => {
             if (filterValue === 'az') {
-                return a.name.localeCompare(b.name); // A dan Z ga
+                return a.name.localeCompare(b.name);
             } else if (filterValue === 'za') {
-                return b.name.localeCompare(a.name); // Z dan A ga
+                return b.name.localeCompare(a.name);
             } else if (gradeData.columns.length > 0) {
                 const firstCol = gradeData.columns[0];
                 const statusA = a.statuses[firstCol];
                 const statusB = b.statuses[firstCol];
 
                 const getRank = (st) => {
-                    if (st === false) return 1; // Bajarmaganlar
-                    if (st === true) return 2;  // Bajarilganlar
-                    return 3;                   // Bo'shlar
+                    if (st === false) return 1;
+                    if (st === true) return 2;
+                    return 3;
                 };
 
                 const rankA = getRank(statusA);
@@ -352,4 +390,19 @@ function renderTable() {
     });
 
     tableBody.innerHTML = bodyHTML;
+}
+
+const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+const authPasswordInput = document.getElementById('authPassword');
+
+if (togglePasswordBtn) {
+    togglePasswordBtn.addEventListener('click', () => {
+        if (authPasswordInput.type === 'password') {
+            authPasswordInput.type = 'text';
+            togglePasswordBtn.textContent = '🙈';
+        } else {
+            authPasswordInput.type = 'password';
+            togglePasswordBtn.textContent = '👁️';
+        }
+    });
 }
